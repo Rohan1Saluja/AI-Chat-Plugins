@@ -15,26 +15,15 @@ export const newsPlugin: Plugin = {
   execute: async (args: string[]): Promise<PluginExecuteResult> => {
     const query = args[0]?.trim();
 
-    const apiKey = process.env.NEXT_PUBLIC_NEWSAPI_KEY;
-
-    if (!apiKey)
-      return {
-        success: false,
-        error: "News service is currently unavailable (API key missing).",
-      };
-
-    // NewsAPI endpoint: 'top-headlines' or 'everything'
-    // For simplicity, let's use 'top-headlines'. It requires 'country' or 'category' or 'sources' or 'q'.
-    // If no query, let's fetch general top headlines from a country (e.g., 'us').
-    // If query, use it with 'q' parameter.
-    let apiUrl = `https://newsapi.org/v2/top-headlines?language=en&pageSize=7&apiKey=${apiKey}`;
-    if (query) apiUrl += `&q=${encodeURIComponent(query)}`;
-    else apiUrl += `&country=us`;
+    let localApiUrl = `/api/news`;
+    if (query) {
+      localApiUrl += `?q=${encodeURIComponent(query)}`;
+    }
     try {
-      const response = await fetch(apiUrl);
+      const response = await fetch(localApiUrl);
       const data: NewsApiResponseModel = await response.json();
 
-      if (data.status !== "ok")
+      if (!response.ok || data.status !== "ok")
         return {
           success: false,
           error: data.message || "Could not fetch news at this time.",
