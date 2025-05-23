@@ -6,10 +6,18 @@ import { v4 as uuidv4 } from "uuid";
 import MessageList from "./MessageList";
 import InputBox from "./InputBox";
 import Sidebar from "./Sidebar";
+import {
+  findPluginForMessage,
+  ProcessedMessageResult,
+} from "@/lib/pluginManager";
 
 export default function ChatWindow() {
   const [messages, setMessages] = React.useState<MessageModal[]>([]);
-  const [isAssistantTyping, setIsAssistantTyping] = React.useState(false); // For later
+  const [isAssistantTyping, setIsAssistantTyping] = React.useState(false);
+
+  const addMessage = (message: MessageModal) => {
+    setMessages((prevMessages) => [...prevMessages, message]);
+  };
 
   // Load chat history from localStorage (we'll do this in a later phase)
   // useEffect(() => {
@@ -34,20 +42,99 @@ export default function ChatWindow() {
       timestamp: new Date().toISOString(),
       type: "text",
     };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
+    addMessage(userMessage);
 
     setIsAssistantTyping(true);
-    setTimeout(() => {
+
+    const processedResult: ProcessedMessageResult = findPluginForMessage(text);
+
+    if (processedResult.type === "plugin_match") {
+      const { plugin, args } = processedResult;
+
+      const loadingMessageId = uuidv4();
+      const loadingMessage: MessageModal = {
+        id: loadingMessageId,
+        sender: "assistant",
+        content: plugin.isLoadingMessage || "Processing...",
+        timestamp: new Date().toISOString(),
+        type: "loading",
+        pluginName: plugin.name,
+      };
+      addMessage(loadingMessage);
+
+      try {
+        const executionResult = await plugin.execute(args);
+
+        let finalMessage: MessageModal;
+        if (executionResult.success) {
+          finalMessage = {
+            id: loadingMessageId,
+            sender: "assistant",
+            content:
+              executionResult.displayText || "Plugin executed successfully",
+            timestamp: new Date().toISOString(),
+            type:
+              executionResult.data && plugin.renderResult ? "plugin" : "text",
+
+            pluginName: plugin.name,
+            pluginData: executionResult.data,
+            errorMessage: undefined,
+          };
+        } else {
+          finalMessage = {
+            id: loadingMessageId,
+            sender: "assistant",
+            content: executionResult.error || "Plugin execution failed",
+            timestamp: new Date().toISOString(),
+            type: "error",
+            pluginName: plugin.name,
+            errorMessage: executionResult.error || "Unknown error occurred",
+          };
+        }
+
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.id === loadingMessageId ? finalMessage : msg
+          )
+        );
+      } catch (error) {
+        console.error(`Execution Error - ${plugin.name}: `, error);
+
+        const errorMessage: MessageModal = {
+          id: loadingMessageId,
+          sender: "assistant",
+          content: `A critical error occurred while running the ${plugin.name} plugin.`,
+          timestamp: new Date().toISOString(),
+          type: "error",
+          pluginName: plugin.name,
+          errorMessage:
+            error instanceof Error
+              ? error.message
+              : "Unknown critical error during execution",
+        };
+
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.id === loadingMessageId ? errorMessage : msg
+          )
+        );
+      }
+    }
+    // ------------------------------------
+    // PLugin mismatch
+    else {
       const assistantMessage: MessageModal = {
         id: uuidv4(),
         sender: "assistant",
-        content: `You said: "${text}" (This is a mock response)`,
+        content: `I didn't understand that. Try commands like /weather [city], /calc [expression], or /define [word].`,
         timestamp: new Date().toISOString(),
         type: "text",
       };
-      setMessages((prevMessages) => [...prevMessages, assistantMessage]);
-      setIsAssistantTyping(false);
-    }, 1000);
+
+      addMessage(assistantMessage);
+    }
+
+    setIsAssistantTyping(false);
   };
 
   return (

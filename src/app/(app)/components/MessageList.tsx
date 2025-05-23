@@ -13,6 +13,7 @@ export default function MessageList({
   messages,
   isTyping = false,
 }: MessageListProps) {
+  console.log("Messages - ", messages);
   return (
     <ScrollToBottom
       className="flex-grow p-4 overflow-y-auto h-[77.5%] max-h-[77.5%]"
