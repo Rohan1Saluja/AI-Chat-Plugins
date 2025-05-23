@@ -41,13 +41,5 @@ export const calcPlugin: Plugin = {
           : "Error evaluating expression. Please check the syntax.",
       };
     }
-    console.log(`Calc plugin triggered for expression: ${expression}`);
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    // ----------------------------------------
-    return {
-      success: true,
-      displayText: `Stub: Result for "${expression}" would be shown here.`,
-    };
   },
 };
