@@ -65,6 +65,9 @@ export default function ChatWindow() {
       try {
         const executionResult = await plugin.execute(args);
 
+        console.log("Execution Result: ", executionResult);
+        console.log("Plugin: ", plugin);
+
         let finalMessage: MessageModal;
         if (executionResult.success) {
           finalMessage = {
