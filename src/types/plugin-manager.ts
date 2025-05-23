@@ -21,6 +21,8 @@ export interface Plugin {
   isLoadingMessage?: string;
 }
 
+// -----------------------------------------------------------
+
 export interface WeatherModel {
   city: string;
   temp: number;
@@ -29,4 +31,37 @@ export interface WeatherModel {
   country: string;
   humidity: string;
   windSpeed: number;
+}
+
+export interface PhoneticModel {
+  text?: string;
+  audio?: string;
+  sourceUrl?: string;
+  license?: {
+    name: string;
+    url: string;
+  };
+}
+
+export interface DefinitionModel {
+  definition: string;
+  synonyms: string[];
+  antonyms: string[];
+  example?: string;
+}
+
+export interface MeaningModel {
+  partOfSpeech: string;
+  definitions: DefinitionModel[];
+  synonyms: string[];
+  antonyms: string[];
+}
+
+export interface DictionaryModel {
+  word: string;
+  phonetic?: string;
+  phonetics: PhoneticModel[];
+  meanings: MeaningModel[];
+  license: { name: string; url: string };
+  sourceUrls: string[];
 }
