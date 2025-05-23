@@ -42,12 +42,10 @@ export default function Message({ message }: MessageItemProps) {
     }
   }
 
-  console.log("Container Classes - ", containerClasses);
-
   return (
     <div className={`flex mb-3 ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={containerClasses}>
-        {!isUser && message.type !== "loading" && message.type !== "plugin" && (
+        {!isUser && message.type !== "loading" && (
           <p className="text-xs font-semibold mb-1 opacity-80 capitalize">
             {message.pluginName
               ? `${message.pluginName} plugin`

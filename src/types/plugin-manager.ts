@@ -1,3 +1,5 @@
+import { JSX } from "react";
+
 export interface PluginExecuteResult {
   success: boolean;
   data?: any;
@@ -8,7 +10,7 @@ export interface PluginExecuteResult {
 // Plugin should return a Promise of Execution Result
 export type PluginExecutor = (args: string[]) => Promise<PluginExecuteResult>;
 
-export type PluginRenderer = (data: any) => any;
+export type PluginRenderer = (data: any) => JSX.Element;
 
 export interface Plugin {
   name: string;
@@ -17,4 +19,14 @@ export interface Plugin {
   execute: PluginExecutor;
   renderResult?: PluginRenderer;
   isLoadingMessage?: string;
+}
+
+export interface WeatherModel {
+  city: string;
+  temp: number;
+  description: string;
+  icon: string;
+  country: string;
+  humidity: string;
+  windSpeed: number;
 }
