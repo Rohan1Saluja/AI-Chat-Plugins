@@ -1,12 +1,12 @@
 "use client";
 
-import { MessageModal } from "@/types/chat-interface";
+import { MessageModel } from "@/types/chat-interface";
 import Message from "./Message";
 import ScrollToBottom from "react-scroll-to-bottom";
 import React from "react";
 
 interface MessageListProps {
-  messages: MessageModal[];
+  messages: MessageModel[];
   isTyping: boolean;
 }
 
