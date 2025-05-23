@@ -1,17 +1,19 @@
 "use client";
 
+import PluginResponse from "@/components/messages/PluginResponse";
+import TextResponse from "@/components/messages/TextResponse";
 import { registeredPlugins } from "@/lib/pluginManager";
 import { MessageModal } from "@/types/chat-interface";
-import React from "react";
+import React, { useState, useEffect } from "react";
 
-interface MessageItemProps {
+interface MessageProps {
   message: MessageModal;
 }
 
-export default function Message({ message }: MessageItemProps) {
-  const [formattedTime, setFormattedTime] = React.useState("");
+export default function Message({ message }: MessageProps) {
+  const [formattedTime, setFormattedTime] = useState("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     setFormattedTime(
       new Date(message.timestamp).toLocaleTimeString([], {
         hour: "2-digit",
@@ -19,6 +21,7 @@ export default function Message({ message }: MessageItemProps) {
       })
     );
   }, [message.timestamp]);
+
   const isUser = message.sender === "user";
 
   const plugin =
@@ -26,43 +29,55 @@ export default function Message({ message }: MessageItemProps) {
       ? registeredPlugins.find((p) => p.name === message.pluginName)
       : undefined;
 
-  const useCustomRenderer = plugin && plugin.renderResult && message.pluginData;
+  const useCustomRenderer = !!(
+    plugin &&
+    plugin.renderResult &&
+    message.pluginData
+  );
 
-  let displayContent: React.ReactNode = message.content;
+  let displayContentNode: React.ReactNode;
   let containerClasses = "max-w-[70%] p-3 rounded-xl break-words";
-
   let showSenderName = !isUser && message.type !== "loading";
+  let showTimestamp = !useCustomRenderer;
 
   if (isUser) {
     containerClasses += " bg-primary-500 text-white";
+    displayContentNode = (
+      <TextResponse content={message.content} isAssistant={false} />
+    );
   } else {
     if (useCustomRenderer) {
-      // null check
-      displayContent = plugin?.renderResult!(message.pluginData);
+      displayContentNode = plugin?.renderResult!(message.pluginData);
       containerClasses += " bg-transparent p-0";
       showSenderName = false;
+      showTimestamp = false;
     } else {
       switch (message.type) {
         case "loading":
           containerClasses += " bg-background-600 text-text-300 italic";
-          displayContent = <p>{message.content || "loading..."}</p>;
+          displayContentNode = <p>{message.content || "loading..."}</p>;
+          showSenderName = false;
           break;
-
         case "error":
           containerClasses += " bg-red-700 text-red-100";
-          displayContent = (
+          displayContentNode = (
             <>
               <p className="font-semibold">Error:</p>
               <p>{message.errorMessage || message.content}</p>
             </>
           );
           break;
-
         case "plugin":
+          containerClasses += " bg-background-700 text-text-100";
+          displayContentNode = <PluginResponse content={message.content} />;
+          // showTimestamp = false;
+          break;
         case "text":
         default:
           containerClasses += " bg-background-700 text-text-100";
-          displayContent = <p>{message.content}</p>;
+          displayContentNode = (
+            <TextResponse content={message.content} isAssistant={true} />
+          );
           break;
       }
     }
@@ -76,8 +91,8 @@ export default function Message({ message }: MessageItemProps) {
             {message.pluginName ? `${message.pluginName}` : message.sender}
           </p>
         )}
-        {displayContent}
-        {!useCustomRenderer && (
+        {displayContentNode}
+        {showTimestamp && (
           <p className="text-xs opacity-70 mt-1 text-right">{formattedTime}</p>
         )}
       </div>
