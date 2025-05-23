@@ -9,7 +9,7 @@ export default function WeatherCard({ data }: Props) {
   if (!data) return <p className="text-text-400">No weather data available.</p>;
 
   return (
-    <div className="bg-background-700 p-4 rounded-lg shadow-md text-text-100 w-full">
+    <>
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3>
@@ -41,6 +41,6 @@ export default function WeatherCard({ data }: Props) {
           {data.windSpeed.toFixed(1)} m/s
         </p>
       </div>
-    </div>
+    </>
   );
 }
