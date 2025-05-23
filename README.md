@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Chat with Plugins - Take-Home
 
-## Getting Started
+This is a Next.js & React chat interface that uses a plugin system for different tools. You can type regular messages or slash commands like `/weather London`.
 
-First, run the development server:
+**Demo:** (Link here if you deployed it, otherwise remove this line)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Quick Start
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1.  **Clone:** `git clone https://github.com/[YourGitHubUsername]/ai-chat-plugins.git && cd ai-chat-plugins`
+2.  **Install:** `npm install`
+3.  **Env Vars:**
+    - `cp .env.local.example .env.local`
+    - Edit `.env.local` to add your `NEXT_PUBLIC_OPENWEATHER_API_KEY`. Get one from [OpenWeatherMap](https://openweathermap.org/appid).
+4.  **Run:** `npm run dev` (App on `http://localhost:3000`)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How It Works: Plugins & Parsing
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Plugin Architecture:**
+  - Each plugin (in `/plugins`) defines a `trigger` (RegExp for the command), an `execute` function (does the work, like API calls), and optionally a `renderResult` (React component for custom UI).
+  - The `pluginManager.ts` in `/lib` holds a list of these plugins.
+- **Parsing Logic:**
+  - When you send a message, `ChatWindow.tsx` uses the `pluginManager` to check if the input matches any plugin's `trigger` RegExp.
+  - If it matches, it extracts args and calls that plugin's `execute`.
+  - Results are then displayed, either as plain text (with a typing/chunking effect for the assistant) or using the plugin's `renderResult` component if it has one (like for weather/definition cards).
+  - Basic chat history is saved to `localStorage`.
 
-## Learn More
+## Plugins Built
 
-To learn more about Next.js, take a look at the following resources:
+1.  **`/calc [expression]`**
+    - Does math using `mathjs`. No external API.
+    - Shows result as text.
+2.  **`/weather [city]`**
+    - Gets current weather.
+    - API: [OpenWeatherMap Current Weather API](https://openweathermap.org/current)
+    - Shows a weather card.
+3.  **`/define [word]`**
+    - Looks up word definitions.
+    - API: [Free Dictionary API](https://dictionaryapi.dev/)
+    - Shows a definition card.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tech Used
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Next.js (App Router), React, TypeScript, Tailwind CSS, `mathjs`, `uuid`, `react-scroll-to-bottom`.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
