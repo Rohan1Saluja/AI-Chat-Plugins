@@ -2,11 +2,15 @@ import { Plugin } from "@/types/plugin-manager";
 import { calcPlugin } from "./plugins/calc.plugin";
 import { definePlugin } from "./plugins/define.plugin";
 import { weatherPlugin } from "./plugins/weather.plugin";
+import { jokePlugin } from "./plugins/joke.plugin";
+import { newsPlugin } from "./plugins/news.plugin";
 
 export const registeredPlugins: Plugin[] = [
   weatherPlugin,
   calcPlugin,
   definePlugin,
+  jokePlugin,
+  newsPlugin,
 ];
 
 interface PluginMatch {
@@ -34,8 +38,8 @@ export const findPluginForMessage = (
     if (match) {
       const args = match
         .slice(1)
-        .map((arg) => arg.trim())
-        .filter((arg) => arg.length > 0);
+        .map((arg) => arg?.trim())
+        .filter((arg) => arg?.length > 0);
       return { type: "plugin_match", plugin, args };
     }
   }

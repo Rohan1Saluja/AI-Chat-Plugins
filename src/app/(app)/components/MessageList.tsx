@@ -16,6 +16,25 @@ export default function MessageList({
 }: MessageListProps) {
   const [hasMounted, setHasMounted] = React.useState(false);
 
+  const plugins = [
+    {
+      label: "/calc",
+      title: "Perform calculations, e.g., /calc 2+2",
+    },
+    {
+      label: "/weather",
+      title: "Get current weather info, e.g., /weather London",
+    },
+    {
+      label: "/define",
+      title: "Get word definitions, e.g., /define serendipity",
+    },
+    {
+      label: "/joke",
+      title: "Get a random joke, e.g., /joke",
+    },
+  ];
+
   React.useEffect(() => {
     setHasMounted(true);
   }, []);
@@ -24,13 +43,15 @@ export default function MessageList({
     "flex-grow p-4 overflow-y-auto h-[68.5%] max-h-[68.5%]";
 
   const defaultMessage = () => (
-    <div className="prose flex flex-col justify-center items-center h-3/4 min-h-[50dvh]">
+    <div className="prose flex flex-col justify-center items-center text-center h-3/4 min-h-[50dvh]">
       <h2 className="text-text-500">Freya Welcomes You!</h2>
       <h5>Use these Stubs and get answers to your questions</h5>
-      <ul className="list-disc flex items-center gap-10 italic">
-        <li>/calc</li>
-        <li>/weather</li>
-        <li>/define</li>
+      <ul className="list-disc flex flex-wrap items-center justify-center italic cursor-default">
+        {plugins.map((plugin) => (
+          <li key={plugin.label} title={plugin.title} className="mx-5">
+            {plugin.label}
+          </li>
+        ))}
       </ul>
     </div>
   );

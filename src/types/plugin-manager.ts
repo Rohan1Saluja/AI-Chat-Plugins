@@ -33,6 +33,8 @@ export interface WeatherModel {
   windSpeed: number;
 }
 
+// ------------------------------------------
+
 export interface PhoneticModel {
   text?: string;
   audio?: string;
@@ -64,4 +66,40 @@ export interface DictionaryModel {
   meanings: MeaningModel[];
   license: { name: string; url: string };
   sourceUrls: string[];
+}
+
+// ------------------------------------------
+
+export interface JokeModel {
+  type: "single" | "twopart";
+  joke?: string;
+  setup?: string;
+  delivery?: string;
+  category?: string;
+  error?: boolean;
+  message?: string;
+}
+
+// ------------------------------------------
+
+export interface NewsArticleModel {
+  source: {
+    id: string | null;
+    name: string;
+  };
+  author: string | null;
+  title: string;
+  description: string | null;
+  url: string;
+  urlToImage: string | null;
+  publishedAt: string;
+  content: string | null;
+}
+
+export interface NewsApiResponseModel {
+  status: string;
+  totalResults: number;
+  articles: NewsArticleModel[];
+  code?: string; //for errors
+  message?: string;
 }

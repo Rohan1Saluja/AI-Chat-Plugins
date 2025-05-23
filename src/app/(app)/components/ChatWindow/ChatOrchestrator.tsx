@@ -58,7 +58,7 @@ export default function ChatOrchestrator() {
         dispatch({ type: "SET_ASSISTANT_PROCESSING", payload: false });
       }
     },
-    [chatService] // chatService should be stable from its own hook
+    [chatService]
   );
 
   // --- Effect for Initial Load ---
@@ -144,7 +144,6 @@ export default function ChatOrchestrator() {
         // return;
       }
 
-      console.log("Orchestrator: Attempting to save session", activeSessionId);
       chatService
         .saveSession(sessionToSave)
         .then(() => {
@@ -163,21 +162,11 @@ export default function ChatOrchestrator() {
           console.error("Orchestrator: Failed to save session:", error);
         });
     }
-  }, [
-    currentMessages,
-    activeSessionId,
-    allSessions,
-    chatService,
-    isInitialized,
-  ]); // allSessions is a dependency to get the base session metadata
+  }, [currentMessages, activeSessionId, chatService, isInitialized]);
 
   // --- Public handler for the "New Chat" button ---
   const handleNewChatButtonClick = () => {
     if (isAssistantProcessing) return;
-    console.log(
-      "Orchestrator: New chat button clicked. Current allSessions count:",
-      allSessions.length
-    );
     handleCreateNewSessionInternal(allSessions); // Pass current allSessions state
   };
 
