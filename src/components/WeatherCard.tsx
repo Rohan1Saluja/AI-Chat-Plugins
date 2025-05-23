@@ -10,7 +10,7 @@ export default function WeatherCard({ data }: Props) {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between gap-6 mb-3 ">
         <div>
           <h3>
             {data.city}, {data.country}

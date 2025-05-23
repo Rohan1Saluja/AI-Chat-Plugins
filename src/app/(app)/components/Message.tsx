@@ -3,11 +3,11 @@
 import PluginResponse from "@/components/messages/PluginResponse";
 import TextResponse from "@/components/messages/TextResponse";
 import { registeredPlugins } from "@/lib/pluginManager";
-import { MessageModal } from "@/types/chat-interface";
+import { MessageModel } from "@/types/chat-interface";
 import React, { useState, useEffect } from "react";
 
 interface MessageProps {
-  message: MessageModal;
+  message: MessageModel;
 }
 
 export default function Message({ message }: MessageProps) {
