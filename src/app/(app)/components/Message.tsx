@@ -36,7 +36,7 @@ export default function Message({ message }: MessageProps) {
   );
 
   let displayContentNode: React.ReactNode;
-  let containerClasses = "max-w-[70%] p-3 rounded-xl break-words";
+  let containerClasses = "max-w-[70%] p-4 rounded-xl break-words";
   let showSenderName = !isUser && message.type !== "loading";
   let showTimestamp = !useCustomRenderer;
 
@@ -48,8 +48,7 @@ export default function Message({ message }: MessageProps) {
   } else {
     if (useCustomRenderer) {
       displayContentNode = plugin?.renderResult!(message.pluginData);
-      containerClasses += " bg-transparent p-0";
-      showSenderName = false;
+      containerClasses += " bg-background-700 text-text-100";
       showTimestamp = false;
     } else {
       switch (message.type) {
@@ -83,12 +82,16 @@ export default function Message({ message }: MessageProps) {
     }
   }
 
+  console.log("Container Classes: ", containerClasses);
+
   return (
     <div className={`flex mb-4 ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={containerClasses}>
         {showSenderName && (
           <p className="text-xs font-semibold mb-1 opacity-80 capitalize">
-            {message.pluginName ? `${message.pluginName}` : message.sender}
+            {message.pluginName
+              ? `${message.pluginName} Plugin`
+              : message.sender}
           </p>
         )}
         {displayContentNode}
