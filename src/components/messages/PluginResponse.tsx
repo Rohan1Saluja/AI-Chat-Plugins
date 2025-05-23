@@ -43,7 +43,7 @@ export default function PluginResponse({ content }: Props) {
         <span
           key={index}
           className="animate-fadeIn opacity-0 mr-1"
-          // style={{ animationDelay: `${index * 0.1}s` }}
+          style={{ animationDelay: `${index * 0.1}s` }}
         >
           {chunk}
         </span>
