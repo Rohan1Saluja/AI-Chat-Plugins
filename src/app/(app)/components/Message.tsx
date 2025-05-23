@@ -36,7 +36,8 @@ export default function Message({ message }: MessageProps) {
   );
 
   let displayContentNode: React.ReactNode;
-  let containerClasses = "max-w-[70%] p-4 rounded-xl break-words";
+  let containerClasses =
+    "max-w-[90%] sm:max-w-4/5 md:max-w-[70%] p-4 rounded-xl break-words";
   let showSenderName = !isUser && message.type !== "loading";
   let showTimestamp = !useCustomRenderer;
 
@@ -81,8 +82,6 @@ export default function Message({ message }: MessageProps) {
       }
     }
   }
-
-  console.log("Container Classes: ", containerClasses);
 
   return (
     <div className={`flex mb-4 ${isUser ? "justify-end" : "justify-start"}`}>

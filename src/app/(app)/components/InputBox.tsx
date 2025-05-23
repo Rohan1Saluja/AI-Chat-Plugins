@@ -29,7 +29,7 @@ export default function InputBox({ onSendMessage, isSending = false }: Props) {
     <div className="flex flex-col items-center justify-center gap-2 w-full">
       <form
         onSubmit={handleSubmit}
-        className="sticky w-3/4 xl:w-3/5 left-[20%] xl:left-[26%] bottom-0 flex items-center p-4 border-t border-background-700"
+        className="sticky w-full sm:w-3/4 xl:w-3/5 left-[20%] xl:left-[26%] bottom-0 flex items-center p-4 border-t border-background-700"
       >
         <textarea
           value={inputValue}
@@ -52,18 +52,18 @@ export default function InputBox({ onSendMessage, isSending = false }: Props) {
           }}
           placeholder="Type your message or command..."
           disabled={isSending}
-          className="flex-grow px-6 py-4 rounded-lg bg-background-800 text-text-200 focus:ring-0 shadow-xl focus:shadow-center-large focus:outline-none placeholder-textColor-500 resize-none"
+          className="text-sm lg:text-base flex-grow px-6 py-4 rounded-lg bg-background-800 text-text-200 focus:ring-0 shadow-xl focus:shadow-center-large focus:outline-none placeholder-textColor-500 resize-none"
           rows={3}
         />
         <button
           type="submit"
           disabled={isSending || !inputValue.trim()}
-          className="ml-3 px-6 py-3 bg-primary hover:bg-primary-600 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+          className="text-xs sm:text-sm lg:text-base ml-3 px-6 py-3 bg-primary hover:bg-primary-600 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
         >
           Send
         </button>
       </form>
-      <p className="text-sm text-gray-500 italic">
+      <p className="text-xs sm:text-sm text-gray-500 italic px-4">
         Note: Freya is still learning and may occasionally make mistakes.
       </p>
     </div>
