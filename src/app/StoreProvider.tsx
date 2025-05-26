@@ -2,6 +2,7 @@
 
 import { AppDispatch, store } from "@/store";
 import { initializeAuth } from "@/store/auth/authSlice";
+import { Analytics } from "@vercel/analytics/next";
 import React from "react";
 import { Provider, useDispatch } from "react-redux";
 
@@ -24,6 +25,7 @@ export default function StoreProvider({
   return (
     <Provider store={store}>
       <AppAuthInitializer>{children}</AppAuthInitializer>
+      <Analytics />
     </Provider>
   );
 }
