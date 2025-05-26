@@ -13,25 +13,38 @@ import {
 } from "@/store/chatWindow/reducer"; // Adjust path
 import { useChatService } from "@/hooks/useChatData"; // Adjust path
 import ChatWindowView from "./ChatWindowView"; // The presentational component we just created
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store";
+import { signOutUser } from "@/store/auth/authSlice";
 
 // It's good practice to keep the reducer and initial state with the orchestrator
 // if they are not used elsewhere, or import them as you did.
 
 export default function ChatOrchestrator() {
+  const dispatch = useDispatch<AppDispatch>();
   const chatService = useChatService();
-  const [state, dispatch] = useReducer(chatWindowReducer, initialChatState);
+  const [chatState, chatDispatchAction] = useReducer(
+    chatWindowReducer,
+    initialChatState
+  );
+  const {
+    user,
+    session,
+    isLoading: isAuthLoading,
+    isInitialized: isAuthInitialized,
+  } = useSelector((state: RootState) => state.auth);
   const {
     currentMessages,
     activeSessionId,
     allSessions,
-    isInitialized,
+    isInitialized: isChatLogicInitialized,
     isAssistantProcessing,
-  } = state;
+  } = chatState;
 
   // --- Internal Logic for Creating a New Session ---
   const handleCreateNewSessionInternal = useCallback(
     async (currentListOfSessions: ChatSessionModel[]) => {
-      dispatch({ type: "SET_ASSISTANT_PROCESSING", payload: true }); // Indicate work
+      chatDispatchAction({ type: "SET_ASSISTANT_PROCESSING", payload: true }); // Indicate work
       try {
         const newSession = await chatService.createSession(
           currentListOfSessions.length
@@ -41,7 +54,7 @@ export default function ChatOrchestrator() {
           newSession,
         ];
 
-        dispatch({
+        chatDispatchAction({
           type: "CREATE_NEW_SESSION_SUCCESS",
           payload: { newSession, updatedAllSessions },
         });
@@ -55,21 +68,26 @@ export default function ChatOrchestrator() {
         console.error("Error creating new session:", error);
         // dispatch({ type: "SET_ERROR", payload: "Failed to create new session." });
       } finally {
-        dispatch({ type: "SET_ASSISTANT_PROCESSING", payload: false });
+        chatDispatchAction({
+          type: "SET_ASSISTANT_PROCESSING",
+          payload: false,
+        });
       }
     },
-    [chatService]
+    [chatService, chatDispatchAction]
   );
+
+  // ---------------------------------------------------------------------
 
   // --- Effect for Initial Load ---
   useEffect(() => {
-    if (isInitialized) return;
+    if (!isAuthInitialized || isChatLogicInitialized) return;
 
     const initializeChat = async () => {
       console.log("Orchestrator: Initializing chat...");
       const { sessions: loadedSessions, activeSessionId: loadedActiveId } =
         await chatService.loadInitialData();
-      dispatch({
+      chatDispatchAction({
         type: "INITIALIZATION_LOADED",
         payload: { sessions: loadedSessions, activeSessionId: loadedActiveId },
       });
@@ -77,7 +95,7 @@ export default function ChatOrchestrator() {
       let sessionToLoad = loadedSessions.find((s) => s.id === loadedActiveId);
 
       if (sessionToLoad) {
-        dispatch({
+        chatDispatchAction({
           type: "SET_ACTIVE_SESSION_AND_MESSAGES",
           payload: {
             sessionId: sessionToLoad.id,
@@ -91,7 +109,7 @@ export default function ChatOrchestrator() {
             new Date(a.lastUpdatedAt).getTime()
         )[0];
         if (sessionToLoad) {
-          dispatch({
+          chatDispatchAction({
             type: "SET_ACTIVE_SESSION_AND_MESSAGES",
             payload: {
               sessionId: sessionToLoad.id,
@@ -105,16 +123,24 @@ export default function ChatOrchestrator() {
       } else {
         await handleCreateNewSessionInternal([]);
       }
-      dispatch({ type: "MARK_INITIALIZED" });
+      chatDispatchAction({ type: "MARK_INITIALIZED" });
       console.log("Orchestrator: Chat initialized.");
     };
 
     initializeChat();
-  }, [chatService, isInitialized, handleCreateNewSessionInternal]);
+  }, [
+    chatService,
+    isChatLogicInitialized,
+    handleCreateNewSessionInternal,
+    user,
+    isAuthInitialized,
+  ]);
+
+  // ------------------------------------------------------------
 
   // --- Effect for Saving Active Session's Messages ---
   useEffect(() => {
-    if (!isInitialized || !activeSessionId) return;
+    if (!isChatLogicInitialized || !activeSessionId) return;
     // We want to save even if currentMessages is empty, especially if it's a newly created session
     // or if all messages were deleted (future feature).
     // The `saveSession` in the service should handle the actual "is there something to save" logic.
@@ -153,7 +179,7 @@ export default function ChatOrchestrator() {
           // If saveSession in the service updated the persistent store,
           // we need to ensure our `allSessions` state reflects at least the `lastUpdatedAt`
           // and any other metadata that might have changed.
-          dispatch({
+          chatDispatchAction({
             type: "UPDATE_SESSION_IN_ALL_SESSIONS",
             payload: sessionToSave, // Send the complete session data that was saved
           });
@@ -162,12 +188,12 @@ export default function ChatOrchestrator() {
           console.error("Orchestrator: Failed to save session:", error);
         });
     }
-  }, [currentMessages, activeSessionId, chatService, isInitialized]);
+  }, [currentMessages, activeSessionId, chatService, isChatLogicInitialized]);
 
   // --- Public handler for the "New Chat" button ---
   const handleNewChatButtonClick = () => {
     if (isAssistantProcessing) return;
-    handleCreateNewSessionInternal(allSessions); // Pass current allSessions state
+    handleCreateNewSessionInternal(allSessions);
   };
 
   // --- handleSendMessage Logic ---
@@ -193,15 +219,15 @@ export default function ChatOrchestrator() {
       timestamp: new Date().toISOString(),
       type: "text",
     };
-    dispatch({ type: "ADD_MESSAGE", payload: userMessage });
-    dispatch({ type: "SET_ASSISTANT_PROCESSING", payload: true });
+    chatDispatchAction({ type: "ADD_MESSAGE", payload: userMessage });
+    chatDispatchAction({ type: "SET_ASSISTANT_PROCESSING", payload: true });
 
     const processedResult = findPluginForMessage(text);
     const loadingMessageId = uuidv4();
 
     if (processedResult.type === "plugin_match") {
       const { plugin, args } = processedResult;
-      dispatch({
+      chatDispatchAction({
         type: "ADD_MESSAGE",
         payload: {
           id: loadingMessageId,
@@ -239,10 +265,10 @@ export default function ChatOrchestrator() {
             errorMessage: executionResult.error,
           };
         }
-        dispatch({ type: "REPLACE_MESSAGE", payload: finalMessage });
+        chatDispatchAction({ type: "REPLACE_MESSAGE", payload: finalMessage });
       } catch (e) {
         /* Critical error during execution */
-        dispatch({
+        chatDispatchAction({
           type: "REPLACE_MESSAGE",
           payload: {
             id: loadingMessageId,
@@ -257,7 +283,7 @@ export default function ChatOrchestrator() {
       }
     } else {
       // No plugin matched
-      dispatch({
+      chatDispatchAction({
         type: "ADD_MESSAGE",
         payload: {
           id: uuidv4(),
@@ -268,15 +294,28 @@ export default function ChatOrchestrator() {
         },
       });
     }
-    dispatch({ type: "SET_ASSISTANT_PROCESSING", payload: false });
+    chatDispatchAction({ type: "SET_ASSISTANT_PROCESSING", payload: false });
+  };
+
+  // --- Logout ---
+  const handleLogout = () => {
+    dispatch(signOutUser());
   };
 
   // --- UI Rendering ---
-  if (!isInitialized) {
+  if (!isAuthInitialized || (!user && !isChatLogicInitialized)) {
     return (
       <div className="flex flex-col h-screen w-full items-center justify-center bg-background-900">
         <p className="text-textColor text-xl">Initializing Chat...</p>
         {/* Consider adding a visual spinner component here */}
+      </div>
+    );
+  }
+
+  if (user && !isChatLogicInitialized && !isAuthLoading) {
+    return (
+      <div className="flex h-screen w-fit items-center justify-center bg-background-900">
+        <p className="text-xl">Loading your chats...</p>
       </div>
     );
   }
@@ -294,6 +333,9 @@ export default function ChatOrchestrator() {
       isAssistantProcessing={isAssistantProcessing}
       onSendMessage={handleSendMessage}
       onNewChatClick={handleNewChatButtonClick}
+      isAuthenticated={!!session}
+      userEmail={user?.email}
+      onLogoutClick={handleLogout}
     />
   );
 }
