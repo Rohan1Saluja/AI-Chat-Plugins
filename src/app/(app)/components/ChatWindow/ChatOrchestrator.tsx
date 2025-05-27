@@ -1,18 +1,15 @@
 "use client";
 
-import React, { useReducer, useEffect, useCallback } from "react";
-import { MessageModel, ChatSessionModel } from "@/types/chat-interface"; // Adjust path
-import { v4 as uuidv4 } from "uuid"; // For message IDs
-import {
-  findPluginForMessage,
-  ProcessedMessageResult,
-} from "@/lib/pluginManager"; // Adjust path
+import React, { useReducer, useEffect } from "react";
+import { MessageModel, ChatSessionModel } from "@/types/chat-interface";
+import { v4 as uuidv4 } from "uuid";
+import { findPluginForMessage } from "@/lib/pluginManager";
 import {
   chatWindowReducer,
   initialChatState,
-} from "@/store/chatWindow/reducer"; // Adjust path
-import { useChatService } from "@/hooks/useChatData"; // Adjust path
-import ChatWindowView from "./ChatWindowView"; // The presentational component we just created
+} from "@/store/chatWindow/reducer";
+import { useChatService } from "@/hooks/useChatService";
+import ChatWindowView from "./ChatWindowView";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { signOutUser } from "@/store/auth/actions";
@@ -39,15 +36,17 @@ export default function ChatOrchestrator() {
     allSessions,
     isInitialized: isChatLogicInitialized,
     isAssistantProcessing,
+    isLoading: isChatDataLoading,
   } = chatState;
 
   // --- Internal Logic for Creating a New Session ---
-  const handleCreateNewSessionInternal = useCallback(
+  const handleCreateNewSessionInternal = React.useCallback(
     async (currentListOfSessions: ChatSessionModel[]) => {
-      chatDispatchAction({ type: "SET_ASSISTANT_PROCESSING", payload: true }); // Indicate work
+      chatDispatchAction({ type: "SET_ASSISTANT_PROCESSING", payload: true });
       try {
         const newSession = await chatService.createSession(
-          currentListOfSessions.length
+          currentListOfSessions.length,
+          user?.id
         );
         const updatedAllSessions = [
           ...currentListOfSessions.filter((s) => s.id !== newSession.id),
@@ -59,10 +58,12 @@ export default function ChatOrchestrator() {
           payload: { newSession, updatedAllSessions },
         });
 
-        await chatService.saveAllSessions(updatedAllSessions, newSession.id);
+        await chatService.saveActiveSessionIdentifier(newSession.id, user?.id);
+
         console.log(
-          "Orchestrator: New session created and saved:",
-          newSession.id
+          `Orchestrator: New session ${
+            newSession.userId ? "for user " + newSession.userId : "for GUEST"
+          } created: ${newSession.id}`
         );
       } catch (error) {
         console.error("Error creating new session:", error);
@@ -74,24 +75,35 @@ export default function ChatOrchestrator() {
         });
       }
     },
-    [chatService, chatDispatchAction]
+    [chatService, chatDispatchAction, user?.id]
   );
 
   // ---------------------------------------------------------------------
 
   // --- Effect for Initial Load ---
-  useEffect(() => {
-    if (!isAuthInitialized || isChatLogicInitialized) return;
+  React.useEffect(() => {
+    if (!isAuthInitialized) return;
 
-    const initializeChat = async () => {
-      const { sessions: loadedSessions, activeSessionId: loadedActiveId } =
-        await chatService.loadInitialData();
+    const initializeOrResetChat = async () => {
+      chatDispatchAction({ type: "SET_LOADING", payload: true }); // Indicate chat is loading
+      chatDispatchAction({ type: "RESET_CHAT_STATE_FOR_NEW_CONTEXT" });
+
+      // ----------------------------------------------
+      const {
+        sessions: loadedSessions,
+        activeSessionId: loadedActiveIdFromStorage,
+      } = await chatService.loadInitialData(user?.id);
       chatDispatchAction({
         type: "INITIALIZATION_LOADED",
-        payload: { sessions: loadedSessions, activeSessionId: loadedActiveId },
+        payload: {
+          sessions: loadedSessions,
+          activeSessionId: loadedActiveIdFromStorage,
+        },
       });
 
-      let sessionToLoad = loadedSessions.find((s) => s.id === loadedActiveId);
+      let sessionToLoad = loadedSessions.find(
+        (s) => s.id === loadedActiveIdFromStorage
+      );
 
       if (sessionToLoad) {
         chatDispatchAction({
@@ -101,43 +113,61 @@ export default function ChatOrchestrator() {
             messages: sessionToLoad.messages,
           },
         });
-      } else if (loadedSessions.length > 0) {
+
+        // Ensure active ID in localStorage is up-to-date (might be redundant if loadInitialData already set it)
+        await chatService.saveActiveSessionIdentifier(
+          sessionToLoad.id,
+          user?.id
+        );
+      } else if (loadedSessions.length > 0 && user?.id) {
         sessionToLoad = loadedSessions.sort(
           (a, b) =>
             new Date(b.lastUpdatedAt).getTime() -
             new Date(a.lastUpdatedAt).getTime()
         )[0];
-        if (sessionToLoad) {
-          chatDispatchAction({
-            type: "SET_ACTIVE_SESSION_AND_MESSAGES",
-            payload: {
-              sessionId: sessionToLoad.id,
-              messages: sessionToLoad.messages,
-            },
-          });
-        } else {
-          // Should be unreachable if loadedSessions.length > 0
-          await handleCreateNewSessionInternal(loadedSessions);
-        }
+
+        chatDispatchAction({
+          type: "SET_ACTIVE_SESSION_AND_MESSAGES",
+          payload: {
+            sessionId: sessionToLoad.id,
+            messages: sessionToLoad.messages,
+          },
+        });
+
+        await chatService.saveActiveSessionIdentifier(
+          sessionToLoad.id,
+          user?.id
+        );
       } else {
+        // No sessions loaded (new user, or guest, or user with no sessions)
         await handleCreateNewSessionInternal([]);
       }
       chatDispatchAction({ type: "MARK_INITIALIZED" });
+      chatDispatchAction({ type: "SET_LOADING", payload: false });
+
+      // TODO: Need to revisit this part
+
+      if (
+        isChatLogicInitialized &&
+        (chatState.currentSessionUserId === user?.id ||
+          (!chatState.currentSessionUserId && !user?.id))
+      ) {
+        console.log(
+          "Chat already initialized for current user context. User ID:",
+          user?.id,
+          "Session User ID:",
+          chatState.currentSessionUserId
+        );
+      }
     };
 
-    initializeChat();
-  }, [
-    chatService,
-    isChatLogicInitialized,
-    handleCreateNewSessionInternal,
-    user,
-    isAuthInitialized,
-  ]);
+    initializeOrResetChat();
+  }, [user?.id, isAuthInitialized]);
 
   // ------------------------------------------------------------
 
   // --- Effect for Saving Active Session's Messages ---
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isChatLogicInitialized || !activeSessionId) return;
     // We want to save even if currentMessages is empty, especially if it's a newly created session
     // or if all messages were deleted (future feature).
@@ -155,6 +185,7 @@ export default function ChatOrchestrator() {
         lastUpdatedAt: new Date().toISOString(),
       };
 
+      // TODO: might be removed
       // Avoid saving if messages haven't actually changed from what's in allSessions for this session
       // This is a shallow check, for true equality you might need to stringify or deep-compare,
       // but this can prevent some redundant saves.
@@ -186,7 +217,13 @@ export default function ChatOrchestrator() {
           console.error("Orchestrator: Failed to save session:", error);
         });
     }
-  }, [currentMessages, activeSessionId, chatService, isChatLogicInitialized]);
+  }, [
+    currentMessages,
+    activeSessionId,
+    // chatService,
+    isChatLogicInitialized,
+    // allSessions,
+  ]);
 
   // --- Public handler for the "New Chat" button ---
   const handleNewChatButtonClick = () => {
@@ -296,21 +333,32 @@ export default function ChatOrchestrator() {
   };
 
   // --- Logout ---
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Before dispatching signOutUser, clear any guest-specific localStorage if needed.
+    // If the current active session is a guest session, its ID might be in GUEST_ACTIVE_SESSION_ID_KEY.
+    const currentActiveSessionIsGuest =
+      activeSessionId &&
+      allSessions.find((s) => s.id === activeSessionId && !s.userId);
+    if (currentActiveSessionIsGuest)
+      await chatService.saveActiveSessionIdentifier(null);
+
     dispatch(signOutUser());
   };
 
   // --- UI Rendering ---
-  if (!isAuthInitialized || (!user && !isChatLogicInitialized)) {
+  if (
+    isAuthLoading ||
+    (isAuthInitialized && isChatDataLoading && !isChatLogicInitialized)
+  ) {
     return (
       <div className="flex flex-col h-screen w-full items-center justify-center bg-background-900">
-        <p className="text-textColor text-xl">Initializing Chat...</p>
+        <p className="text-text-500 text-lg">Initializing Chat...</p>
         {/* Consider adding a visual spinner component here */}
       </div>
     );
   }
 
-  if (user && !isChatLogicInitialized && !isAuthLoading) {
+  if (isAuthInitialized && !isChatLogicInitialized && !isChatDataLoading) {
     return (
       <div className="flex h-screen w-fit items-center justify-center bg-background-900">
         <p className="text-xl">Loading your chats...</p>
@@ -320,7 +368,9 @@ export default function ChatOrchestrator() {
 
   const activeSessionName = activeSessionId
     ? allSessions.find((s) => s.id === activeSessionId)?.name ||
-      `Session ${activeSessionId.substring(0, 4)}...`
+      (user?.id
+        ? `Session ${activeSessionId.substring(0, 4)}...`
+        : "Guest Chat")
     : "New Chat";
 
   return (
