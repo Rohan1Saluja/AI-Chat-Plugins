@@ -1,7 +1,7 @@
 "use client";
 
 import { AppDispatch, store } from "@/store";
-import { initializeAuth } from "@/store/auth/authSlice";
+import { initializeAuth } from "@/store/auth/actions";
 import { Analytics } from "@vercel/analytics/next";
 import React from "react";
 import { Provider, useDispatch } from "react-redux";

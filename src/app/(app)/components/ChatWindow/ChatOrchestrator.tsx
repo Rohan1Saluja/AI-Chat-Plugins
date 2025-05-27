@@ -15,7 +15,7 @@ import { useChatService } from "@/hooks/useChatData"; // Adjust path
 import ChatWindowView from "./ChatWindowView"; // The presentational component we just created
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
-import { signOutUser } from "@/store/auth/authSlice";
+import { signOutUser } from "@/store/auth/actions";
 
 // It's good practice to keep the reducer and initial state with the orchestrator
 // if they are not used elsewhere, or import them as you did.
@@ -84,7 +84,6 @@ export default function ChatOrchestrator() {
     if (!isAuthInitialized || isChatLogicInitialized) return;
 
     const initializeChat = async () => {
-      console.log("Orchestrator: Initializing chat...");
       const { sessions: loadedSessions, activeSessionId: loadedActiveId } =
         await chatService.loadInitialData();
       chatDispatchAction({
@@ -124,7 +123,6 @@ export default function ChatOrchestrator() {
         await handleCreateNewSessionInternal([]);
       }
       chatDispatchAction({ type: "MARK_INITIALIZED" });
-      console.log("Orchestrator: Chat initialized.");
     };
 
     initializeChat();

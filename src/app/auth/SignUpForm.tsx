@@ -1,7 +1,7 @@
 "use client";
 
 import { AppDispatch, RootState } from "@/store";
-import { clearAuthError, SignUpwithCredentials } from "@/store/auth/authSlice";
+import { clearAuthError, signUpWithCredentials } from "@/store/auth/actions";
 import {
   AlertCircle,
   CheckCircle2,
@@ -34,24 +34,22 @@ export default function SignUpForm() {
     e.preventDefault();
     dispatch(clearAuthError());
     setMessage(null);
-    const resultAction = await dispatch(
-      SignUpwithCredentials({ email, password })
-    );
+    const result = await dispatch(signUpWithCredentials({ email, password }));
 
-    if (SignUpwithCredentials.fulfilled.match(resultAction)) {
-      if (resultAction.payload.session)
+    if (result.success) {
+      if (result.session) {
         setMessage("Sign up successful! You're now logged in.");
-      else if (
-        resultAction.payload.user &&
-        resultAction.payload.user.identities?.length === 0
-      )
+      } else if (result.user && result.user.identities?.length === 0) {
         setMessage(
           "User already exists and needs to confirm their email. Please check your inbox."
         );
-      else
+      } else {
         setMessage(
           "Sign up successful! Please check your email to confirm your account."
         );
+      }
+    } else {
+      setMessage(result.error || "Something went wrong during sign up.");
     }
   };
 
