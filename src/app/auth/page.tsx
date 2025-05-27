@@ -1,17 +1,17 @@
 "use client";
 
 import { AppDispatch, RootState } from "@/store";
-import { clearAuthError } from "@/store/auth/authSlice";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import LoginForm from "./LoginForm";
 import SignUpForm from "./SignUpForm";
+import { clearAuthError } from "@/store/auth/actions";
 
 export default function AuthPage() {
   const dispatch = useDispatch<AppDispatch>();
 
-  const { user, session, isLoading, error, isInitialized } = useSelector(
+  const { user, session, error, isInitialized } = useSelector(
     (state: RootState) => state.auth
   );
   const router = useRouter();
@@ -21,13 +21,13 @@ export default function AuthPage() {
   }, [dispatch, user]);
 
   React.useEffect(() => {
-    if (isInitialized && session) router.replace("/");
+    if (isInitialized && session) setTimeout(() => router.replace("/"), 600);
   }, [session, isInitialized, router]);
 
-  if (!isInitialized || isLoading) {
+  if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl">Loading...</p>
+        <p className="text-xl">Initializing Chat...</p>
       </div>
     );
   }

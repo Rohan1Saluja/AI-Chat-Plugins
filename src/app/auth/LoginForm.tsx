@@ -1,10 +1,10 @@
 "use client";
 
 import { AppDispatch, RootState } from "@/store";
-import { clearAuthError, signInWithCredentials } from "@/store/auth/authSlice";
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Mail, Lock, LogIn, AlertCircle, CheckCircle2 } from "lucide-react";
+import { clearAuthError, signInWithCredentials } from "@/store/auth/actions";
 
 export default function LoginForm() {
   const dispatch = useDispatch<AppDispatch>();
@@ -23,6 +23,7 @@ export default function LoginForm() {
     dispatch(clearAuthError());
     // Effect to show success message briefly if login was successful (session appears)
     // This is optional, as redirection usually handles it.
+
     if (session && !isLoading && !error) {
       setSuccessMessage("Login successful!");
       const timer = setTimeout(() => setSuccessMessage(null), 3000);
@@ -42,6 +43,8 @@ export default function LoginForm() {
     setSuccessMessage(null);
     dispatch(signInWithCredentials({ email, password }));
   };
+
+  console.log("Sucess message: ", successMessage, isLoading);
 
   return (
     <form
