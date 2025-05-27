@@ -6,6 +6,8 @@ export const initialChatState: ChatWindowState = {
   allSessions: [],
   isInitialized: false,
   isAssistantProcessing: false,
+  isLoading: true,
+  currentSessionUserId: undefined,
   // error: null,
 };
 
@@ -15,19 +17,35 @@ export function chatWindowReducer(
   action: ChatWindowAction
 ): ChatWindowState {
   switch (action.type) {
+    case "SET_LOADING":
+      return { ...state, isLoading: action.payload };
     case "INITIALIZATION_LOADED":
       return {
         ...state,
         allSessions: action.payload.sessions,
         activeSessionId: action.payload.activeSessionId,
         // currentMessages will be set by a subsequent action based on activeSessionId
+        currentSessionUserId:
+          action.payload.sessions[0]?.userId ||
+          (action.payload.sessions.length > 0 ? null : undefined),
       };
 
     case "SET_ACTIVE_SESSION_AND_MESSAGES":
+      const newActiveSession = state.allSessions.find(
+        (s) => s.id === action.payload.sessionId
+      );
       return {
         ...state,
         activeSessionId: action.payload.sessionId,
         currentMessages: action.payload.messages,
+        currentSessionUserId: newActiveSession?.userId || null,
+      };
+
+    case "RESET_CHAT_STATE_FOR_NEW_CONTEXT":
+      return {
+        ...initialChatState,
+        isLoading: true,
+        isInitialized: false,
       };
 
     case "CREATE_NEW_SESSION_SUCCESS":
@@ -35,7 +53,9 @@ export function chatWindowReducer(
         ...state,
         allSessions: action.payload.updatedAllSessions,
         activeSessionId: action.payload.newSession.id,
-        currentMessages: [], // New session starts with empty messages
+        currentMessages: action.payload.newSession.messages, // New session starts with empty messages
+        isAssistantProcessing: false,
+        currentSessionUserId: action.payload.newSession.userId || null, //update context
       };
 
     case "ADD_MESSAGE":

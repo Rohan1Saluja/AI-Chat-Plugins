@@ -7,10 +7,12 @@ export interface MessageModel {
   pluginName?: string;
   pluginData?: any;
   errorMessage?: string;
+  userId?: string;
 }
 
 export interface ChatSessionModel {
   id: string;
+  userId?: string; //verify if keeping this optional works (for guest chat)
   name?: string;
   messages: MessageModel[];
   createdAt: string;
