@@ -11,7 +11,7 @@ import { clearAuthError } from "@/store/auth/actions";
 export default function AuthPage() {
   const dispatch = useDispatch<AppDispatch>();
 
-  const { user, session, error, isInitialized } = useSelector(
+  const { user, error, isInitialized } = useSelector(
     (state: RootState) => state.auth
   );
   const router = useRouter();
@@ -21,8 +21,8 @@ export default function AuthPage() {
   }, [dispatch, user]);
 
   React.useEffect(() => {
-    if (isInitialized && session) setTimeout(() => router.replace("/"), 600);
-  }, [session, isInitialized, router]);
+    if (isInitialized && user) setTimeout(() => router.replace("/"), 600);
+  }, [user, isInitialized, router]);
 
   if (!isInitialized) {
     return (
@@ -46,7 +46,7 @@ export default function AuthPage() {
           <SignUpForm />
         </div>
       </div>
-      {session && (
+      {user && (
         <button className="mt-6 px-6 py-2 text-white rounded-md bg-primary hover:bg-primary-600 hover:cursor-pointer">
           Go to Chat
         </button>

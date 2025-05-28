@@ -10,7 +10,6 @@ function AppAuthInitializer({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch<AppDispatch>();
 
   React.useEffect(() => {
-    console.log("Initializing Auth...");
     dispatch(initializeAuth());
   }, [dispatch]);
 
