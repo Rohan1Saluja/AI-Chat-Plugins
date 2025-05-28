@@ -40,7 +40,7 @@ async function authenticateAndGetContext(request: NextRequest): Promise<{
 // --------------------------------------------------------------
 
 export async function PUT(req: NextRequest, { params }: { params: any }) {
-  const { sessionId } = params;
+  const { sessionId } = await params;
 
   if (!sessionId || typeof sessionId !== "string") {
     console.error(

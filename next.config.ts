@@ -71,6 +71,36 @@ const nextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "static.the-independent.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "assets3.cbsnewsstatic.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "npr.brightspotcdn.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "variety.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.axios.com",
+        port: "",
+        pathname: "/**",
+      },
       // Add any other domains you see frequently in news results
     ],
     // If you were using the older `domains` array (deprecated in favor of remotePatterns):
