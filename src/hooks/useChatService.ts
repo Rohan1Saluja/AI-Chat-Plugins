@@ -135,7 +135,7 @@ export const useChatService = (): ChatDataService => {
 
   const saveSession = React.useCallback(
     async (session: ChatSessionModel): Promise<ChatSessionModel | void> => {
-      if (session.userId && session.id) {
+      if (session.user_id && session.id) {
         //only save if authenticated user
         // console.log(
         //   `ChatService: Saving session ${session.id} for user ${session.userId} to Supabase.`

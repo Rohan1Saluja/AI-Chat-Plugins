@@ -155,7 +155,7 @@ export default function ChatOrchestrator() {
 
   // --- Effect for Saving Active Session's Messages ---
   React.useEffect(() => {
-    if (!isChatLogicInitialized || !activeSessionId) return;
+    if (!isChatLogicInitialized || !activeSessionId || !user?.id) return;
     // We want to save even if currentMessages is empty, especially if it's a newly created session
     // or if all messages were deleted (future feature).
     // The `saveSession` in the service should handle the actual "is there something to save" logic.
@@ -165,6 +165,8 @@ export default function ChatOrchestrator() {
     );
 
     if (activeSessionFromState) {
+      if (activeSessionFromState.user_id !== user.id) return;
+
       // Construct the session object to save using the latest currentMessages from state
       const sessionToSave: ChatSessionModel = {
         ...activeSessionFromState, // Base metadata from allSessions
@@ -173,9 +175,6 @@ export default function ChatOrchestrator() {
       };
 
       // TODO: might be removed
-      // Avoid saving if messages haven't actually changed from what's in allSessions for this session
-      // This is a shallow check, for true equality you might need to stringify or deep-compare,
-      // but this can prevent some redundant saves.
       if (
         JSON.stringify(activeSessionFromState.messages) ===
           JSON.stringify(currentMessages) &&
@@ -190,7 +189,7 @@ export default function ChatOrchestrator() {
         .saveSession(sessionToSave)
         .then((savedOrUpdatedSession) => {
           if (savedOrUpdatedSession) {
-            if (savedOrUpdatedSession.userId) {
+            if (savedOrUpdatedSession.user_id) {
               chatDispatchAction({
                 type: "UPDATE_SESSION_IN_ALL_SESSIONS",
                 payload: savedOrUpdatedSession, // Use the session returned by the service
@@ -273,6 +272,7 @@ export default function ChatOrchestrator() {
 
       try {
         const executionResult = await plugin.execute(args);
+
         let finalMessage: MessageModel;
         if (executionResult.success) {
           finalMessage = {
@@ -335,7 +335,7 @@ export default function ChatOrchestrator() {
     // If the current active session is a guest session, its ID might be in GUEST_ACTIVE_SESSION_ID_KEY.
     const currentActiveSessionIsGuest =
       activeSessionId &&
-      allSessions.find((s) => s.id === activeSessionId && !s.userId);
+      allSessions.find((s) => s.id === activeSessionId && !s.user_id);
     if (currentActiveSessionIsGuest)
       await chatService.saveActiveSessionIdentifier(null);
 

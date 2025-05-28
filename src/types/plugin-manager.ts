@@ -100,6 +100,5 @@ export interface NewsApiResponseModel {
   status: string;
   totalResults: number;
   articles: NewsArticleModel[];
-  code?: string; //for errors
-  message?: string;
+  error?: string;
 }

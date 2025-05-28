@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ChatSessionModel } from "@/types/chat-interface";
+import { ChatSessionModel, MessageModel } from "@/types/chat-interface";
 import { getAccessTokenFromCookie } from "@/utils/authCookies";
 import { SupabaseClient, User } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -67,23 +67,34 @@ export async function PUT(req: NextRequest, { params }: { params: any }) {
   try {
     const sessionToSave: ChatSessionModel = await req.json();
 
-    if (sessionToSave.id !== sessionId || sessionToSave.userId !== userId) {
+    if (sessionToSave.id !== sessionId || sessionToSave.user_id !== userId) {
       return NextResponse.json(
         { error: "Session Id or User Id mismatch" },
         { status: 403 }
       );
     }
 
-    const lastUpdatedAt = new Date().toISOString();
+    const { messages: messagesFromRequest, ...sessionMeta } = sessionToSave;
 
-    // 1. Upsert session metadata (name, lastUpdatedAt)
-    // We trust RLS to ensure the user owns this session.
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const { error: sessionUpsertError } = await supabaseClient
-      .from("chat_sessions")
-      .update({ name: sessionToSave.name, last_updated_at: lastUpdatedAt })
-      .eq("id", sessionId)
-      .eq("user_id", userId);
+    const { data: updatedSession, error: sessionUpsertError } =
+      await supabaseClient
+        .from("chat_sessions")
+        .update({
+          name: sessionMeta.name,
+          last_updated_at: new Date().toISOString(), // Or use sessionMeta.lastUpdatedAt if client sends it reliably
+          // Add any other updatable session fields
+        })
+        .eq("id", sessionId)
+        .eq("user_id", user.id) // Important: ensure user owns the session
+        .select()
+        .single();
 
     if (sessionUpsertError) {
       console.error("API PUT sessionUpsertError:", sessionUpsertError);
@@ -92,25 +103,18 @@ export async function PUT(req: NextRequest, { params }: { params: any }) {
       );
     }
 
-    // 2. Handle messages: Delete existing and insert new ones
-    // This should ideally be in a transaction if your DB supports it easily via Supabase RPC.
-    // For simplicity, we do it sequentially. RLS applies here too.
-
-    const { error: deleteError } = await supabaseClient
-      .from("chat_messages")
-      .delete()
-      .eq("session_id", sessionId);
-
-    if (deleteError) {
-      console.error("API PUT deleteError:", deleteError);
-      throw new Error(`Failed to delete old messages: ${deleteError.message}`);
+    if (!updatedSession) {
+      return NextResponse.json(
+        { error: "Session not found or access denied" },
+        { status: 404 }
+      );
     }
 
-    if (sessionToSave.messages && sessionToSave.messages.length > 0) {
-      const messagesToInsert = sessionToSave.messages.map((msg) => ({
-        id: msg.id,
+    if (messagesFromRequest && messagesFromRequest.length > 0) {
+      const messagesToUpsert = messagesFromRequest.map((msg: MessageModel) => ({
+        id: msg.id, // Crucial: this is the primary key for chat_messages
         session_id: sessionId,
-        user_id: userId, // Explicitly set owner
+        user_id: user.id, // Assuming messages also have user_id for RLS/ownership
         sender: msg.sender,
         content: msg.content,
         timestamp: msg.timestamp,
@@ -118,26 +122,50 @@ export async function PUT(req: NextRequest, { params }: { params: any }) {
         plugin_name: msg.pluginName,
         plugin_data: msg.pluginData,
         error_message: msg.errorMessage,
+        // Add any other fields your chat_messages table has
       }));
 
-      const { error: messagesInsertError } = await supabaseClient
+      // Use Supabase 'upsert'.
+      // 'id' should be your primary key for 'chat_messages'.
+      // If 'id' is not the PK, adjust 'onConflict'.
+      // If your PK is composite (e.g., id, session_id), specify both in onConflict.
+      // For a simple message `id` as PK:
+      const { error: messagesUpsertError } = await supabaseClient
         .from("chat_messages")
-        .insert(messagesToInsert);
+        .upsert(messagesToUpsert, {
+          onConflict: "id", // Assumes 'id' is the PK of chat_messages
+          // if your primary key is (id, session_id) you might need to be more specific or ensure IDs are globally unique.
+          // If 'id' is unique across all messages regardless of session, 'onConflict: id' is fine.
+        });
 
-      if (messagesInsertError) {
-        console.error("API PUT messagesInsertError:", messagesInsertError);
+      if (messagesUpsertError) {
+        console.error("API PUT messagesUpsertError:", messagesUpsertError);
+        // The original error location:
+        // 127 |       if (messagesInsertError) { // This was your old variable name
+        // 128 |         console.error("API PUT messagesInsertError:", messagesInsertError);
+        // > 129 |         throw new Error(
+        //       |              ^
+        // 130 |           `Failed to insert messages: ${messagesInsertError.message}`
         throw new Error(
-          `Failed to insert messages: ${messagesInsertError.message}`
+          `Failed to upsert messages: ${messagesUpsertError.message}`
         );
       }
+    } else {
+      // Optional: Handle case where messagesFromRequest is empty or undefined
+      // You might want to delete all messages for the session if an empty array is passed,
+      // or do nothing. Current upsert logic will simply not upsert anything if the array is empty.
     }
 
-    const updatedSession: ChatSessionModel = {
-      ...sessionToSave,
-      lastUpdatedAt,
+    // Return the fully updated session (metadata + messages that were just processed)
+    // You might want to fetch the messages again from DB to ensure consistency or just return what was processed.
+    // For simplicity, returning the session metadata and assuming client already has messages.
+    // Or, construct the full session object to return.
+    const finalSessionResponse = {
+      ...updatedSession,
+      messages: messagesFromRequest, // Or fetch fresh messages from DB for this session
     };
 
-    return NextResponse.json(updatedSession);
+    return NextResponse.json(finalSessionResponse, { status: 200 });
   } catch (error: any) {
     console.error(`API PUT /sessions/${sessionId} Error:`, error);
     if (error.code === "PGRST204") {

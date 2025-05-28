@@ -16,6 +16,7 @@ export function chatWindowReducer(
   state: ChatWindowState,
   action: ChatWindowAction
 ): ChatWindowState {
+  // console.log("Current Messages - ", state.currentMessages);
   switch (action.type) {
     case "SET_LOADING":
       return { ...state, isLoading: action.payload };
@@ -26,7 +27,7 @@ export function chatWindowReducer(
         activeSessionId: action.payload.activeSessionId,
         // currentMessages will be set by a subsequent action based on activeSessionId
         currentSessionUserId:
-          action.payload.sessions[0]?.userId ||
+          action.payload.sessions[0]?.user_id ||
           (action.payload.sessions.length > 0 ? null : undefined),
       };
 
@@ -38,7 +39,7 @@ export function chatWindowReducer(
         ...state,
         activeSessionId: action.payload.sessionId,
         currentMessages: action.payload.messages,
-        currentSessionUserId: newActiveSession?.userId || null,
+        currentSessionUserId: newActiveSession?.user_id || null,
       };
 
     case "RESET_CHAT_STATE_FOR_NEW_CONTEXT":
@@ -55,7 +56,7 @@ export function chatWindowReducer(
         activeSessionId: action.payload.newSession.id,
         currentMessages: action.payload.newSession.messages, // New session starts with empty messages
         isAssistantProcessing: false,
-        currentSessionUserId: action.payload.newSession.userId || null, //update context
+        currentSessionUserId: action.payload.newSession.user_id || null, //update context
       };
 
     case "ADD_MESSAGE":
