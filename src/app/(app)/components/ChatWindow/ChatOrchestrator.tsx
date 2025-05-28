@@ -26,7 +26,6 @@ export default function ChatOrchestrator() {
   );
   const {
     user,
-    session,
     isLoading: isAuthLoading,
     isInitialized: isAuthInitialized,
   } = useSelector((state: RootState) => state.auth);
@@ -59,12 +58,6 @@ export default function ChatOrchestrator() {
         });
 
         await chatService.saveActiveSessionIdentifier(newSession.id, user?.id);
-
-        console.log(
-          `Orchestrator: New session ${
-            newSession.userId ? "for user " + newSession.userId : "for GUEST"
-          } created: ${newSession.id}`
-        );
       } catch (error) {
         console.error("Error creating new session:", error);
         // dispatch({ type: "SET_ERROR", payload: "Failed to create new session." });
@@ -152,12 +145,6 @@ export default function ChatOrchestrator() {
         (chatState.currentSessionUserId === user?.id ||
           (!chatState.currentSessionUserId && !user?.id))
       ) {
-        console.log(
-          "Chat already initialized for current user context. User ID:",
-          user?.id,
-          "Session User ID:",
-          chatState.currentSessionUserId
-        );
       }
     };
 
@@ -182,7 +169,7 @@ export default function ChatOrchestrator() {
       const sessionToSave: ChatSessionModel = {
         ...activeSessionFromState, // Base metadata from allSessions
         messages: currentMessages, // Latest messages for this session
-        lastUpdatedAt: new Date().toISOString(),
+        // lastUpdatedAt: new Date().toISOString(),
       };
 
       // TODO: might be removed
@@ -201,17 +188,27 @@ export default function ChatOrchestrator() {
 
       chatService
         .saveSession(sessionToSave)
-        .then(() => {
-          console.log(
-            `Orchestrator: Session ${activeSessionId} saved successfully.`
-          );
-          // If saveSession in the service updated the persistent store,
-          // we need to ensure our `allSessions` state reflects at least the `lastUpdatedAt`
-          // and any other metadata that might have changed.
-          chatDispatchAction({
-            type: "UPDATE_SESSION_IN_ALL_SESSIONS",
-            payload: sessionToSave, // Send the complete session data that was saved
-          });
+        .then((savedOrUpdatedSession) => {
+          if (savedOrUpdatedSession) {
+            if (savedOrUpdatedSession.userId) {
+              chatDispatchAction({
+                type: "UPDATE_SESSION_IN_ALL_SESSIONS",
+                payload: savedOrUpdatedSession, // Use the session returned by the service
+              });
+            } else {
+              // For guest, we still update lastUpdatedAt locally.
+              // The saveSession for guest might just return the input session with an updated timestamp.
+              // Or ChatService could handle setting lastUpdatedAt for guests before returning.
+              // Let's assume saveSession returns the session with potentially updated lastUpdatedAt for guests too.
+              chatDispatchAction({
+                type: "UPDATE_SESSION_IN_ALL_SESSIONS",
+                payload: {
+                  ...savedOrUpdatedSession,
+                  lastUpdatedAt: new Date().toISOString(), // Or rely on service to set this
+                },
+              });
+            }
+          }
         })
         .catch((error) => {
           console.error("Orchestrator: Failed to save session:", error);
@@ -381,7 +378,7 @@ export default function ChatOrchestrator() {
       isAssistantProcessing={isAssistantProcessing}
       onSendMessage={handleSendMessage}
       onNewChatClick={handleNewChatButtonClick}
-      isAuthenticated={!!session}
+      isAuthenticated={!!user}
       userEmail={user?.email}
       onLogoutClick={handleLogout}
     />

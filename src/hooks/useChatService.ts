@@ -1,9 +1,4 @@
-import { supabase } from "@/lib/supabaseClient";
-import {
-  ChatHistoryStoreModel,
-  ChatSessionModel,
-  MessageModel,
-} from "@/types/chat-interface";
+import { ChatSessionModel } from "@/types/chat-interface";
 import React from "react";
 import { v4 as uuidv4 } from "uuid";
 
@@ -18,7 +13,7 @@ interface ChatDataService {
     sessions: ChatSessionModel[];
     activeSessionId: string | null;
   }>;
-  saveSession: (session: ChatSessionModel) => Promise<void>;
+  saveSession: (session: ChatSessionModel) => Promise<ChatSessionModel | void>;
   saveActiveSessionIdentifier: (
     activeSessionId: string | null,
     userId?: string
@@ -40,64 +35,32 @@ export const useChatService = (): ChatDataService => {
       activeSessionId: string | null;
     }> => {
       if (userId) {
-        console.log(`ChatService: Loading initial data for user ${userId}`);
         try {
-          const { data: sessionsData, error: sessionsError } = await supabase
-            .from("chat_sessions")
-            .select("*")
-            .eq("user_id", userId)
-            .order("last_updated_at", { ascending: false });
-
-          if (sessionsError) throw sessionsError;
-
-          const sessions: ChatSessionModel[] = [];
-          if (sessionsData) {
-            for (const sessionRow of sessionsData) {
-              let { data: messagesData, error: messagesError } = await supabase
-                .from("chat_messages")
-                .select("*")
-                .eq("session_id", sessionRow.id)
-                .order("timestamp", { ascending: true });
-
-              if (messagesError) {
-                // Continue processing other sessions or return partial data
-                // For simplicity here, we'll just map empty messages if error
-                messagesData = [];
-              }
-
-              const messages: MessageModel[] = (messagesData || []).map(
-                (msg) => ({
-                  id: msg.id,
-                  sender: msg.sender,
-                  content: msg.content,
-                  timestamp: msg.timestamp,
-                  type: msg.type,
-                  pluginName: msg.plugin_name,
-                  pluginData: msg.plugin_data,
-                  errorMessage: msg.error_message,
-                })
-              );
-              sessions.push({
-                id: sessionRow.id,
-                userId: sessionRow.user_id,
-                name: sessionRow.name,
-                messages: messages,
-                createdAt: sessionRow.created_at,
-                lastUpdatedAt: sessionRow.last_updated_at,
-              });
-            }
+          const response = await fetch("/api/chat/sessions");
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              `Failed to load sessions: ${response.status} ${
+                response.statusText
+              } - ${errorData.error || ""}`
+            );
           }
+
+          const sessions = await response.json();
+
           const storedActiveId = localStorage.getItem(
             getUserActiveSessionIdKey(userId)
           );
 
-          const activeSessionId = sessions.find((s) => s.id === storedActiveId)
+          const activeSessionId = sessions.find(
+            (s: any) => s.id === storedActiveId
+          )
             ? storedActiveId
             : null;
 
-          console.log(
-            `ChatService: Loaded ${sessions.length} sessions for user ${userId}. Active ID: ${activeSessionId}`
-          );
+          // console.log(
+          //   `ChatService: Loaded ${sessions.length} sessions for user ${userId}. Active ID: ${activeSessionId}`
+          // );
 
           return { sessions, activeSessionId };
         } catch (error) {
@@ -108,9 +71,9 @@ export const useChatService = (): ChatDataService => {
           return { sessions: [], activeSessionId: null };
         }
       } else {
-        console.log(
-          "ChatService: Initializing for GUEST. Sessions are ephemeral and not loaded from persistence."
-        );
+        // console.log(
+        //   "ChatService: Initializing for GUEST. Sessions are ephemeral and not loaded from persistence."
+        // );
         // For guests, sessions are destroyed on refresh, so we don't load anything.
         // We also don't look for a guest activeSessionId from localStorage here,
         // because a new session will be created by the orchestrator.
@@ -120,58 +83,43 @@ export const useChatService = (): ChatDataService => {
     []
   );
 
+  // -----------------------------------------------------
+
   const createSession = React.useCallback(
     async (
       sessionNumber: number,
       userId?: string
     ): Promise<ChatSessionModel> => {
-      const newSessionId = uuidv4();
-
-      const now = new Date().toISOString();
-
-      // Supabase user
+      // Supabase authenticated user
       if (userId) {
-        console.log(
-          `ChatService: Creating new session for user ${userId}, number ${sessionNumber}`
-        );
-        const newSessionData = {
-          id: newSessionId,
-          user_id: userId,
-          name: `Chat ${sessionNumber + 1} - ${now}`,
-          created_at: now,
-          last_updated_at: now,
-        };
+        // console.log(
+        //   `ChatService: Creating new session for user ${userId}, number ${sessionNumber}`
+        // );
+        const response = await fetch("api/chat/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionNumber }),
+        });
 
-        const { data, error } = await supabase
-          .from("chat_sessions")
-          .insert(newSessionData)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        if (!data)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
           throw new Error(
-            "Failed to create session in Supabase: No data returned."
+            `Failed to create session: ${response.status} ${
+              response.statusText
+            } - ${errorData.error || errorData.details || ""}`
           );
+        }
 
-        return {
-          id: data.id,
-          userId: data.user_id,
-          name: data.name,
-          messages: [],
-          createdAt: data.created_at,
-          lastUpdatedAt: data.last_updated_at,
-        };
+        const newSession: ChatSessionModel = await response.json();
+
+        return newSession;
       }
       // Guest User
       else {
-        console.log(
-          `ChatService: Creating new GUEST session, number ${sessionNumber}`
-        );
+        const now = new Date().toISOString();
 
         const guestSession: ChatSessionModel = {
-          id: newSessionId,
+          id: uuidv4(),
           name: `Guest Chat ${sessionNumber + 1}`,
           messages: [],
           createdAt: now,
@@ -183,63 +131,46 @@ export const useChatService = (): ChatDataService => {
     []
   );
 
+  // -----------------------------------------------------
+
   const saveSession = React.useCallback(
-    async (session: ChatSessionModel): Promise<void> => {
-      if (session.userId) {
-        console.log(
-          `ChatService: Saving session ${session.id} for user ${session.userId} to Supabase.`
-        );
-        const { id, userId, name, createdAt, messages } = session;
-        const lastUpdatedAt = new Date().toISOString();
+    async (session: ChatSessionModel): Promise<ChatSessionModel | void> => {
+      if (session.userId && session.id) {
+        //only save if authenticated user
+        // console.log(
+        //   `ChatService: Saving session ${session.id} for user ${session.userId} to Supabase.`
+        // );
 
-        const { error: sessionUpsertError } = await supabase
-          .from("chat_sessions")
-          .upsert({
-            id,
-            user_id: userId,
-            name,
-            created_at: createdAt,
-            last_updated_at: lastUpdatedAt,
-          });
+        const response = await fetch(`/api/chat/sessions/${session.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(session),
+        });
 
-        if (sessionUpsertError) throw sessionUpsertError;
-
-        // Delete existing messages and re-insert (simple strategy)
-        //  TODO: why are we not pushing the new message? The current approach seems to be expensive
-        await supabase.from("chat_messages").delete().eq("session_id", id);
-
-        if (messages.length > 0) {
-          const messagesToInsert = messages.map((msg) => ({
-            id: msg.id,
-            session_id: id,
-            user_id: userId,
-            sender: msg.sender,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            type: msg.type,
-            plugin_name: msg.pluginName,
-            plugin_data: msg.pluginData,
-            error_message: msg.errorMessage,
-          }));
-
-          const { error: messagesInsertError } = await supabase
-            .from("chat_messages")
-            .insert(messagesToInsert);
-          if (messagesInsertError) throw messagesInsertError;
-
-          console.log(
-            `ChatService: Session ${session.id} (user: ${userId}) and its ${messages.length} messages saved.`
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            `Failed to save session: ${response.status} ${
+              response.statusText
+            } - ${errorData.error || ""}`
           );
-        } else {
-          console.log(
-            `ChatService: Session ${session.id} is a GUEST session. Not saving to persistent store.`
-          );
-          // Guest sessions are ephemeral; data lives in React state and is lost on refresh.
         }
+
+        const updatedSession: ChatSessionModel = await response.json();
+
+        return updatedSession;
+      } else {
+        console.log(
+          `ChatService: Session ${session.id} is a GUEST session. Not saving to persistent store.`
+        );
+        // Guest sessions are ephemeral; data lives in React state and is lost on refresh.
+        return session;
       }
     },
     []
   );
+
+  // -----------------------------------------------------
 
   // This function ONLY saves the active session ID to localStorage.
   // Session data itself is saved via saveSession (for users) or not at all (for guests).
@@ -252,11 +183,11 @@ export const useChatService = (): ChatDataService => {
 
       if (activeSessionId) {
         localStorage.setItem(key, activeSessionId);
-        console.log(
-          `ChatService: Active session ID ${activeSessionId} saved to localStorage for ${
-            userId ? "user " + userId : "guest"
-          }. Key: ${key}`
-        );
+        // console.log(
+        //   `ChatService: Active session ID ${activeSessionId} saved to localStorage for ${
+        //     userId ? "user " + userId : "guest"
+        //   }. Key: ${key}`
+        // );
       } else {
         localStorage.removeItem(key);
         console.log(

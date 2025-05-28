@@ -8,7 +8,8 @@ import { clearAuthError, signInWithCredentials } from "@/store/auth/actions";
 
 export default function LoginForm() {
   const dispatch = useDispatch<AppDispatch>();
-  const { isLoading, error, session } = useSelector(
+  const { isLoading, error, user } = useSelector(
+    // Get user instead of session for this
     (state: RootState) => state.auth
   );
 
@@ -24,7 +25,7 @@ export default function LoginForm() {
     // Effect to show success message briefly if login was successful (session appears)
     // This is optional, as redirection usually handles it.
 
-    if (session && !isLoading && !error) {
+    if (user && !isLoading && !error && !successMessage) {
       setSuccessMessage("Login successful!");
       const timer = setTimeout(() => setSuccessMessage(null), 3000);
       return () => clearTimeout(timer);
@@ -35,7 +36,7 @@ export default function LoginForm() {
       dispatch(clearAuthError());
       setSuccessMessage(null);
     };
-  }, [dispatch, session, isLoading, error]);
+  }, [dispatch, user, isLoading, error, successMessage]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -43,8 +44,6 @@ export default function LoginForm() {
     setSuccessMessage(null);
     dispatch(signInWithCredentials({ email, password }));
   };
-
-  console.log("Sucess message: ", successMessage, isLoading);
 
   return (
     <form
