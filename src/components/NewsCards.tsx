@@ -11,7 +11,7 @@ export const NewsArticleCard = ({ article }: { article: NewsArticleModel }) => {
     >
       {article.urlToImage && (
         <Image
-          src={article.urlToImage}
+          src={`/api/image-proxy?url=${encodeURIComponent(article.urlToImage)}`}
           alt={article.title}
           width={400}
           height={128}
@@ -50,7 +50,7 @@ export const NewsFeedCard = ({
     );
   }
   return (
-    <div className="bg-background-700 p-3 rounded-lg shadow-md text-textColor-100 w-full max-h-96 overflow-y-auto">
+    <div className="p-3 w-full max-h-96 overflow-y-auto">
       {query && (
         <h3 className="text-lg font-semibold text-accent-400 mb-2">
           Top Headlines {`for "${query}"`}:

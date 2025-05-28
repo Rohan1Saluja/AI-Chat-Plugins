@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         }));
         sessions.push({
           id: sessionRow.id,
-          userId: sessionRow.user_id,
+          user_id: sessionRow.user_id,
           name: sessionRow.name,
           messages: messages,
           createdAt: sessionRow.created_at,
@@ -198,7 +198,7 @@ export async function POST(request: Request) {
 
     const newSession: ChatSessionModel = {
       id: created.id,
-      userId: created.user_id,
+      user_id: created.user_id,
       name: created.name,
       messages: [],
       createdAt: created.created_at,

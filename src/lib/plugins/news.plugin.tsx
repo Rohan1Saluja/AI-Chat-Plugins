@@ -6,6 +6,17 @@ import {
   PluginExecuteResult,
 } from "@/types/plugin-manager";
 
+const VALID_NEWS_CATEGORIES = [
+  "business",
+  "entertainment",
+  "general",
+  "health",
+  "science",
+  "sports",
+  "technology",
+  "ai",
+];
+
 export const newsPlugin: Plugin = {
   name: "news",
   description:
@@ -13,23 +24,34 @@ export const newsPlugin: Plugin = {
   trigger: /^\/news(?:\s+(.+))?$/i,
   isLoadingMessage: "Fetching latest news...",
   execute: async (args: string[]): Promise<PluginExecuteResult> => {
-    const query = args[0]?.trim();
+    const query = args?.[0]?.trim();
+    let userQueryDescription = "latest top headlines";
 
-    let localApiUrl = `/api/news`;
+    let backendApiUrl = `/api/plugins/news`;
+    const queryParams = new URLSearchParams();
     if (query) {
-      localApiUrl += `?q=${encodeURIComponent(query)}`;
+      const lowerQueryArgument = query.toLowerCase();
+      if (VALID_NEWS_CATEGORIES.includes(lowerQueryArgument)) {
+        queryParams.set("category", lowerQueryArgument);
+        userQueryDescription = `top headlines in '${lowerQueryArgument}'`;
+      } else {
+        queryParams.set("topic", query); // Treat as a search topic
+        userQueryDescription = `news related to '${query}'`;
+      }
+      backendApiUrl += `?${queryParams.toString()}`;
     }
+
     try {
-      const response = await fetch(localApiUrl);
+      const response = await fetch(backendApiUrl);
       const data: NewsApiResponseModel = await response.json();
 
-      if (!response.ok || data.status !== "ok")
+      if (!response.ok || data.error)
         return {
           success: false,
-          error: data.message || "Could not fetch news at this time.",
+          error: data.error || "Could not fetch news at this time.",
         };
 
-      if (data.articles.length === 0)
+      if (!data.articles || data.articles.length === 0)
         return {
           success: true,
           data: { articles: [], query: query },
