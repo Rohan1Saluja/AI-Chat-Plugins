@@ -16,40 +16,66 @@ import { useDispatch, useSelector } from "react-redux";
 
 export default function SignUpForm() {
   const dispatch = useDispatch<AppDispatch>();
-  const { isLoading, error } = useSelector((state: RootState) => state.auth);
+  const { isLoading, error: globalAuthError } = useSelector(
+    (state: RootState) => state.auth
+  );
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [retypePassword, setRetypePassword] = React.useState("");
-  const [message, setMessage] = React.useState<string | null>(null);
+
+  const [localMessage, setLocalMessage] = React.useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = React.useState<boolean>(false);
 
   React.useEffect(() => {
+    dispatch(clearAuthError());
     return () => {
+      // Cleanup on unmount
       dispatch(clearAuthError());
-      setMessage(null);
+      setLocalMessage(null);
+      setIsSuccess(false);
     };
   }, [dispatch]);
+
+  React.useEffect(() => {
+    if (globalAuthError) {
+      setLocalMessage(globalAuthError);
+      setIsSuccess(false);
+    }
+  }, [globalAuthError]);
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     dispatch(clearAuthError());
-    setMessage(null);
+    setLocalMessage(null); // Clear previous local message
+    setIsSuccess(false);
+
+    if (password !== retypePassword) {
+      setLocalMessage("Passwords do not match.");
+      setIsSuccess(false);
+      return;
+    }
+    if (password.length < 6) {
+      setLocalMessage("Password should be at least 6 characters.");
+      setIsSuccess(false);
+      return;
+    }
     const result = await dispatch(signUpWithCredentials({ email, password }));
 
     if (result.success) {
-      if (result.session) {
-        setMessage("Sign up successful! You're now logged in.");
-      } else if (result.user && result.user.identities?.length === 0) {
-        setMessage(
-          "User already exists and needs to confirm their email. Please check your inbox."
-        );
-      } else {
-        setMessage(
-          "Sign up successful! Please check your email to confirm your account."
-        );
-      }
+      setIsSuccess(true);
+      // Use the message from the API (via thunk's result.messageFromApi)
+      setLocalMessage(
+        result.message ||
+          "Sign up processed successfully! Check email if confirmation needed."
+      );
     } else {
-      setMessage(result.error || "Something went wrong during sign up.");
+      setIsSuccess(false);
+      setLocalMessage(
+        result.error || // Error message from the thunk/API
+          result.message || // Fallback to API message if error is generic
+          "Something went wrong during sign up. Please try again."
+      );
     }
   };
 
@@ -65,14 +91,21 @@ export default function SignUpForm() {
         <UserPlus size={28} strokeWidth={2.5} /> Sign Up
       </h3>
       {/* Error and Message Display */}
-      {error && (
+      {globalAuthError && (
         <div className="flex items-center justify-center text-red-400 text-sm p-2 bg-red-900/30 rounded-md gap-2">
-          <AlertCircle size={18} /> {error}
+          <AlertCircle size={18} /> {globalAuthError}
         </div>
       )}
-      {message && (
-        <div className="flex items-center justify-center text-green-400 text-sm p-2 bg-green-900/30 rounded-md gap-2">
-          <CheckCircle2 size={18} /> {message}
+      {localMessage && (
+        <div
+          className={`flex items-center justify-center text-sm p-2 rounded-md gap-2 ${
+            isSuccess
+              ? "text-green-400 bg-green-900/30"
+              : "text-red-400 bg-red-900/30"
+          }`}
+        >
+          {isSuccess ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          {localMessage}
         </div>
       )}
       {/* Email Input */}

@@ -39,13 +39,19 @@ async function authenticateAndGetContext(request: NextRequest): Promise<{
 // Update the chat session for the authenticated user
 // --------------------------------------------------------------
 
-export async function PUT(
-  req: NextRequest,
-  context: { params: { sessionId: string } }
-) {
-  const supabase = createSupabaseServerClient();
+export async function PUT(req: NextRequest, { params }: { params: any }) {
+  const { sessionId } = params;
 
-  const { sessionId } = context.params;
+  if (!sessionId || typeof sessionId !== "string") {
+    console.error(
+      "PUT /api/chat/sessions/ - Error: sessionId not found or invalid in params",
+      params
+    );
+    return NextResponse.json(
+      { error: "Invalid or missing sessionId" },
+      { status: 400 }
+    );
+  }
 
   const {
     user,
